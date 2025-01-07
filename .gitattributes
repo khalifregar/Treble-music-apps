@@ -1,0 +1,2 @@
+* linguist-vendored=true
+*.dart linguist-vendored=false
