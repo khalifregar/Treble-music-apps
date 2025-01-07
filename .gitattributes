@@ -1,2 +1,13 @@
 * linguist-vendored=true
 *.dart linguist-vendored=false
+ios/* linguist-vendored
+android/* linguist-vendored
+build/* linguist-vendored
+*.h linguist-vendored
+*.cc linguist-vendored
+*.cpp linguist-vendored
+*.cmake linguist-vendored
+CMakeLists.txt linguist-vendored
+*.swift linguist-vendored
+*.m linguist-vendored
+*.html linguist-vendored
