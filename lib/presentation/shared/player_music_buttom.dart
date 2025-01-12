@@ -1,5 +1,4 @@
 // player_music_bottom.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -13,84 +12,123 @@ class PlayerMusicBottom extends StatelessWidget {
     this.songData,
     required this.isPlaying,
     required this.onPlayPause,
+    required bool isLoading,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 80.h,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: Row(
-          children: [
-            // Music thumbnail
-            Container(
-              height: 60.w,
-              width: 60.w,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8.r),
-                image: songData?['image'] != null
-                    ? DecorationImage(
-                        image: AssetImage(songData!['image']!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-            ),
-            SizedBox(width: 12.w),
-            // Song info
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    songData?['title'] ?? 'No Song Selected',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFF282828),
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
+          child: Row(
+            children: [
+              // Song thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4.r),
+                child: Container(
+                  height: 60.h,
+                  width: 80.w,
+                  decoration: BoxDecoration(
+                    image: songData?['image'] != null
+                        ? DecorationImage(
+                            image: AssetImage(songData!['image']!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    color: const Color(0xFF404040),
                   ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    songData?['artist'] ?? '',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14.sp,
+                  child: songData?['image'] == null
+                      ? Icon(
+                          Icons.music_note,
+                          color: Colors.grey[600],
+                          size: 20.w,
+                        )
+                      : null,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              // Song info
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      songData?['title'] ?? 'No Title',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    SizedBox(height: 3.h),
+                    Text(
+                      songData?['artist'] ?? 'Unknown Artist',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 17.sp,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Control buttons
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(
+                      Icons.devices_outlined,
+                      color: Colors.white,
+                      size: 24.w,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: 40.w,
+                      minHeight: 40.h,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.white,
+                      size: 24.w,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: 40.w,
+                      minHeight: 40.h,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onPlayPause,
+                    icon: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 32.w,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: 40.w,
+                      minHeight: 40.h,
+                    ),
                   ),
                 ],
               ),
-            ),
-            // Play/Pause button
-            IconButton(
-              onPressed: onPlayPause,
-              icon: Icon(
-                isPlaying
-                    ? Icons.pause_circle_filled
-                    : Icons.play_circle_filled,
-                color: Colors.green,
-                size: 40.w,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:trebel/application/cubit/greetings/greetings_cubit.dart';
 import 'package:trebel/presentation/shared/detail_page.dart';
 import 'package:trebel/presentation/shared/menu_bar.dart';
@@ -17,23 +23,49 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final List<Map<String, String>> lastPlayedSongs = [];
   final int maxLastPlayed = 8;
   String? currentPlayingId;
   Map<String, String>? currentPlayingSong;
+  bool isPlaying = false;
   int _selectedIndex = 0;
+  bool isLoading = false;
 
-  void _togglePlay(Map<String, String> song) {
-    setState(() {
-      if (currentPlayingId == song['title']) {
-        currentPlayingId = null;
-        currentPlayingSong = null;
-      } else {
-        currentPlayingId = song['title'];
-        currentPlayingSong = song;
-        _addToLastPlayed(song);
-      }
+  @override
+  void initState() {
+    super.initState();
+    _clearAudioCache();
+    _initAudioPlayer();
+  }
+
+  void _initAudioPlayer() {
+    _audioPlayer.setLoopMode(LoopMode.off);
+
+    // Listen to player state changes
+    _audioPlayer.playerStateStream.listen((playerState) {
+      setState(() {
+        if (playerState.processingState == ProcessingState.completed) {
+          currentPlayingId = null;
+          currentPlayingSong = null;
+          isPlaying = false;
+        }
+      });
     });
+
+    // Listen to playing state changes
+    _audioPlayer.playingStream.listen((playing) {
+      setState(() {
+        isPlaying = playing;
+        debugPrint('Playing state changed: $isPlaying');
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   void _addToLastPlayed(Map<String, String> song) {
@@ -51,11 +83,110 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _togglePlay(Map<String, String> song) async {
+    try {
+      if (currentPlayingId == song['title']) {
+        if (_audioPlayer.playing) {
+          await _audioPlayer.pause();
+        } else {
+          await _audioPlayer.play();
+        }
+      } else {
+        if (_audioPlayer.playing) {
+          await _audioPlayer.stop();
+        }
+
+        setState(() {
+          currentPlayingId = song['title'];
+          currentPlayingSong = song;
+        });
+
+        await _playSong(song);
+      }
+    } catch (e) {
+      debugPrint('Error in _togglePlay: $e');
+    }
+  }
+
+  Future<void> _playSong(Map<String, String> song) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final assetPath =
+          'assets/audio/${song['title']!.toLowerCase().replaceAll(' ', '_')}.mp3';
+      debugPrint('📂 Asset path: $assetPath');
+
+      final manifestContent =
+          await DefaultAssetBundle.of(context).loadString('AssetManifest.json');
+      final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+      debugPrint('📝 Available assets: ${manifestMap.keys.toString()}');
+
+      if (!manifestMap.keys.contains(assetPath)) {
+        throw Exception('Asset not found in manifest: $assetPath');
+      }
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final audioPath =
+          '${appDir.path}/audio/${song['title']!.toLowerCase().replaceAll(' ', '_')}.mp3';
+
+      final byteData = await rootBundle.load(assetPath);
+      final buffer = byteData.buffer;
+      await File(audioPath).create(recursive: true);
+      await File(audioPath).writeAsBytes(
+          buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+
+      await _audioPlayer.setFilePath(audioPath);
+
+      // Tambahkan listener untuk status pemutaran
+      _audioPlayer.playerStateStream.listen((playerState) {
+        if (mounted && playerState.processingState == ProcessingState.ready) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      });
+
+      await _audioPlayer.play();
+      debugPrint('▶️ Playback started');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error: $e');
+      debugPrint('📋 Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to play: ${song['title']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _clearAudioCache() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final audioDir = Directory('${appDir.path}/audio');
+
+      if (await audioDir.exists()) {
+        await audioDir.delete(recursive: true);
+        debugPrint('🗑️ Audio cache cleared');
+      }
+
+      await audioDir.create();
+    } catch (e) {
+      debugPrint('❌ Error clearing cache: $e');
+    }
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // TODO: Navigate to the corresponding screen based on the selected index
   }
 
   @override
@@ -64,7 +195,6 @@ class _HomePageState extends State<HomePage> {
       create: (context) => GreetingCubit(),
       child: Scaffold(
         backgroundColor: Colors.black,
-        // Gunakan CustomBottomNavBar
         bottomNavigationBar: CustomBottomNavBar(
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
@@ -226,7 +356,12 @@ class _HomePageState extends State<HomePage> {
                             return PlayCardMusic(
                               songData: _musicData[index],
                               isPlaying: currentPlayingId ==
-                                  _musicData[index]['title'],
+                                      _musicData[index]['title'] &&
+                                  isPlaying,
+                              isLoading: isLoading &&
+                                  currentPlayingId ==
+                                      _musicData[index]
+                                          ['title'], // Tambahkan ini
                               onTap: () => _togglePlay(_musicData[index]),
                             );
                           },
@@ -237,7 +372,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            // Tambahkan player musik di bottom stack
             if (currentPlayingSong != null)
               Positioned(
                 bottom: 0,
@@ -245,7 +379,9 @@ class _HomePageState extends State<HomePage> {
                 right: 0,
                 child: PlayerMusicBottom(
                   songData: currentPlayingSong!,
-                  isPlaying: currentPlayingId == currentPlayingSong!['title'],
+                  isPlaying: currentPlayingId == currentPlayingSong!['title'] &&
+                      isPlaying,
+                  isLoading: isLoading, // Add this
                   onPlayPause: () => _togglePlay(currentPlayingSong!),
                 ),
               ),

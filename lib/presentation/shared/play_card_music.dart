@@ -6,12 +6,14 @@ class PlayCardMusic extends StatelessWidget {
   final Map<String, String> songData;
   final VoidCallback onTap;
   final bool isPlaying;
+  final bool isLoading;
 
   const PlayCardMusic({
     Key? key,
     required this.songData,
     required this.onTap,
     this.isPlaying = false,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
@@ -28,11 +30,23 @@ class PlayCardMusic extends StatelessWidget {
             containerWidth: 180.w,
             margin: EdgeInsets.only(right: 16.w),
           ),
-          if (isPlaying)
+          if (isLoading)
             Positioned(
-              top: 65.w, // Tengah dari height imageSize (180.w/2 - iconSize/2)
-              left: 65
-                  .w, // Tengah dari width containerWidth (180.w/2 - iconSize/2)
+              top: 65.w,
+              left: 65.w,
+              child: SizedBox(
+                width: 50.w,
+                height: 50.w,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                  strokeWidth: 4.w,
+                ),
+              ),
+            )
+          else if (isPlaying)
+            Positioned(
+              top: 65.w,
+              left: 65.w,
               child: Icon(
                 Icons.pause_circle_filled,
                 color: Colors.green,
